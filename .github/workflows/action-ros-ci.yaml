@@ -22,7 +22,7 @@ jobs:
           target-ros2-distro: foxy
           vcs-repo-file-url: ""
       - uses: actions/upload-artifact@v1
+        if: failure()
         with:
-          if: failure() # upload the logs even when the build fails
           name: colcon-logs
           path: ${{ steps.action_ros_ci_step.outputs.ros-workspace-directory-name }}/build/diffbot2_description/test_results/diffbot2_description

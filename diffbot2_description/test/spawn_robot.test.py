@@ -69,17 +69,6 @@ class TestSpawnLaunchInterface(unittest.TestCase):
             self.assertTrue(node.is_node_name_fully_specified())
             self.assertIn(node.node_name, expected_nodes)
 
-    def get_topic_names_and_types(self, expected, timeout):
-        """Make sure discovery has found all 'expected' topics."""
-        start = time.monotonic()
-        while True:
-            topics = self.this_node.get_topic_names_and_types()
-            now = time.monotonic()
-            if all(expected_topic in topics for expected_topic in expected):
-                return topics
-            elif (now - start) > timeout:
-                return None
-
     def test_topics(self):
         expected = [
             ('/ns/joint_states', ['sensor_msgs/msg/JointState']),
@@ -87,15 +76,21 @@ class TestSpawnLaunchInterface(unittest.TestCase):
             ('/tf', ['tf2_msgs/msg/TFMessage']),
             ('/tf_static', ['tf2_msgs/msg/TFMessage'])
         ]
-        topics = self.get_topic_names_and_types(expected, timeout=0.5)
+        topics = self.__get_topic_names_and_types(expected, timeout=0.5)
+        self.assertIsNotNone(topics)
 
         for expected_topic in expected:
             self.assertIn(expected_topic, topics)
 
-
-@launch_testing.post_shutdown_test()
-class TestProcessTermination(unittest.TestCase):
-
-    def test_exit_code(self, proc_info):
-        # rclpy does not exit normally on SIGINT signal (https://github.com/ros2/rclpy/issues/527)
-        launch_testing.asserts.assertExitCodes(proc_info, [launch_testing.asserts.EXIT_OK, -2])
+    def __get_topic_names_and_types(self, expected, timeout):
+        """Make sure discovery has found all 'expected' topics."""
+        start = time.monotonic()
+        while True:
+            topics = self.this_node.get_topic_names_and_types()
+            now = time.monotonic()
+            if all(expected_topic in topics for expected_topic in expected):
+                return topics
+            elif (now - start) < timeout:
+                continue
+            else:
+                return None
