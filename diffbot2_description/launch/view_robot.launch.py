@@ -15,9 +15,10 @@
 # limitations under the License.
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument
-from launch.substitutions import LaunchConfiguration
-from launch.substitutions import PathJoinSubstitution
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.conditions import IfCondition
+from launch.launch_description_sources import PythonLaunchDescriptionSource
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
@@ -28,15 +29,41 @@ def generate_launch_description():
         FindPackageShare('diffbot2_description'), 'rviz/view_robot.rviz'
     ])
 
-    # OBS: do not add rviz2 as dependency because it is heavy
-    return LaunchDescription([
-        DeclareLaunchArgument(name='namespace', default_value='', description='Node namespace'),
-        Node(
-            package='rviz2',
-            executable='rviz2',
-            name='rviz',
-            output='screen',
-            namespace=LaunchConfiguration('namespace'),
-            arguments=['-d', rviz_config],
-        )
+    spawn_launch = PathJoinSubstitution([
+        FindPackageShare('diffbot2_description'), 'launch/spawn_robot.launch.py'
     ])
+
+    spawn_robot = LaunchConfiguration('spawn_robot')
+    namespace = LaunchConfiguration('namespace')
+
+    spawn_robot_arg = DeclareLaunchArgument(
+                        name='spawn_robot',
+                        default_value='false',
+                        description='Flag to spawn the robot or not')
+
+    namespace_arg = DeclareLaunchArgument(
+                        name='namespace',
+                        default_value='',
+                        description='Node namespace')
+
+    # OBS: do not add rviz2 as dependency because it is heavy
+    rviz_node = Node(
+                    package='rviz2',
+                    executable='rviz2',
+                    name='rviz',
+                    output='screen',
+                    namespace=namespace,
+                    arguments=['-d', rviz_config])
+
+    spawn_launch_cmd = IncludeLaunchDescription(
+                        PythonLaunchDescriptionSource(spawn_launch),
+                        condition=IfCondition(spawn_robot))
+
+    launch_description = LaunchDescription()
+
+    launch_description.add_action(spawn_robot_arg)
+    launch_description.add_action(namespace_arg)
+    launch_description.add_action(rviz_node)
+    launch_description.add_action(spawn_launch_cmd)
+
+    return launch_description
